@@ -44,16 +44,28 @@ Item {
             topPadding: 5
             Layout.fillWidth: true
             Layout.fillHeight: true
-            VideoOutput {
-                id: videoOutput
+
+            ColumnLayout {
                 anchors.fill: parent
-                fillMode: VideoOutput.PreserveAspectFit
-                VideoRoi {
-                    id: radRoi
-                    visible: acq.cci.supportsRadiometry
-                    acq: acq
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.verticalCenter: parent.verticalCenter
+
+                VideoOutput {
+                    id: videoOutput
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    fillMode: VideoOutput.PreserveAspectFit
+                    VideoRoi {
+                        id: radRoi
+                        acq: acq
+                        showMinMax: switchMinMax.checked
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                Switch {
+                    id: switchMinMax
+                    text: qsTr("Show Min/Max Points")
+                    Layout.alignment: Qt.AlignHCenter
                 }
             }
         }

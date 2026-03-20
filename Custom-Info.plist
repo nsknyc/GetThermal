@@ -15,7 +15,7 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleExecutable</key>
-	<string>@EXECUTABLE@</string>
+	<string>GetThermal</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.groupgets.getthermal</string>
 	<key>NSCameraUsageDescription</key>
