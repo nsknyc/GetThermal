@@ -161,8 +161,8 @@ void DataFormatter::Colorize(const uvc_frame_t *input, QVideoFrame &output) cons
 {
     uint8_t bytes_per_pixel = 0;
 
-    // we don't have a reason to handle frame buffers other than RGBA for now
-    Q_ASSERT(output.pixelFormat() == QVideoFrame::Format_RGB32);
+    // we don't have a reason to handle frame buffers other than BGRX8888 for now
+    Q_ASSERT(output.pixelFormat() == QVideoFrameFormat::Format_BGRX8888);
 
     switch (input->frame_format) {
     case UVC_FRAME_FORMAT_Y16:
@@ -179,10 +179,10 @@ void DataFormatter::Colorize(const uvc_frame_t *input, QVideoFrame &output) cons
 
     const uint8_t* palette = getPalette(m_pseudocolor_palette)->colormap;
 
-    output.map(QAbstractVideoBuffer::WriteOnly);
+    output.map(QVideoFrame::WriteOnly);
     for (uint32_t i = 0; i < input->height; i++)
     {
-        uint8_t* rgba_line = &output.bits()[output.bytesPerLine() * i];
+        uint8_t* rgba_line = &output.bits(0)[output.bytesPerLine(0) * i];
         for (uint32_t j = 0; j < input->width; j++)
         {
             // assume little-endian, and that we have already contrast extended into 8-bit

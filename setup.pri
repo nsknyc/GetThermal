@@ -84,18 +84,18 @@ LinuxBuild {
 
         # QT_INSTALL_LIBS
         QT_LIB_LIST = \
-            libQt5Core.so.5 \
-            libQt5DBus.so.5 \
-            libQt5Gui.so.5 \
-            libQt5Multimedia.so.5 \
-            libQt5MultimediaQuick_p.so.5 \
-            libQt5OpenGL.so.5 \
-            libQt5Qml.so.5 \
-            libQt5Quick.so.5 \
-            libQt5QuickControls2.so.5 \
-            libQt5QuickTemplates2.so.5 \
-            libQt5QuickWidgets.so.5 \
-            libQt5XcbQpa.so.5
+            libQt6Core.so.6 \
+            libQt6DBus.so.6 \
+            libQt6Gui.so.6 \
+            libQt6Multimedia.so.6 \
+            libQt6MultimediaQuick_p.so.6 \
+            libQt6OpenGL.so.6 \
+            libQt6Qml.so.6 \
+            libQt6Quick.so.6 \
+            libQt6QuickControls2.so.6 \
+            libQt6QuickTemplates2.so.6 \
+            libQt6QuickWidgets.so.6 \
+            libQt6XcbQpa.so.6
 
         for(QT_LIB, QT_LIB_LIST) {
             QMAKE_POST_LINK += && $$QMAKE_COPY --dereference $$[QT_INSTALL_LIBS]/$$QT_LIB $$DESTDIR/Qt/libs/

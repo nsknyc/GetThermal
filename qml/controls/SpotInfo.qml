@@ -1,7 +1,7 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.0
+import QtQuick
+import QtQuick.Controls
 import GetThermal 1.0
-import QtQml 2.2
+import QtQml
 
 Item {
     id: item1
@@ -27,10 +27,10 @@ Item {
 
     function localtemp(k) {
         if (farenheitTemps) {
-            return "" + ktof(k).toFixed(1) + "°F";
+            return "" + ktof(k).toFixed(1) + "\u00B0F";
         }
         else {
-            return "" + ktoc(k).toFixed(2) + "°C";
+            return "" + ktoc(k).toFixed(2) + "\u00B0C";
         }
     }
 

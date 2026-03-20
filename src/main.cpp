@@ -1,7 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
-#include <QAbstractVideoSurface>
 #include <QDebug>
 #include <libuvc/libuvc.h>
 #include "uvcvideoproducer.h"
@@ -13,7 +12,6 @@
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QGuiApplication app(argc, argv);
 
     qmlRegisterType<UvcVideoProducer>("GetThermal", 1,0, "UvcVideoProducer");

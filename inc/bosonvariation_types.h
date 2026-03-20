@@ -15,11 +15,11 @@ extern "C" {
       };\
       class QE_##name {\
             Q_GADGET\
-            Q_ENUMS(E)\
       public:\
             enum class E : storageType {\
                   __VA_ARGS__\
             };\
+            Q_ENUM(E)\
       };
 
 namespace FLR {

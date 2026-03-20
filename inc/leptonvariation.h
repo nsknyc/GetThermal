@@ -122,7 +122,7 @@ public:
     Q_PROPERTY(bool supportsRuntimeAgcChange READ getSupportsRuntimeAgcChange)
     bool getSupportsRuntimeAgcChange() const;
 
-    virtual const QVideoSurfaceFormat getDefaultFormat();
+    virtual const QVideoFrameFormat getDefaultFormat();
 
 signals:
 

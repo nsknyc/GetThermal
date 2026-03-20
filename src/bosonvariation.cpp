@@ -101,9 +101,9 @@ bool BosonVariation::getSupportsRadiometry()
     return false;
 }
 
-const QVideoSurfaceFormat BosonVariation::getDefaultFormat()
+const QVideoFrameFormat BosonVariation::getDefaultFormat()
 {
-    return QVideoSurfaceFormat(QSize(640,512), QVideoFrame::Format_YUV420P);
+    return QVideoFrameFormat(QSize(640,512), QVideoFrameFormat::Format_YUV420P);
 }
 
 float BosonVariation::getCameraInternalTempC()

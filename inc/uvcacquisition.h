@@ -4,7 +4,7 @@
 #include <QList>
 #include <QObject>
 #include <QVideoFrame>
-#include <QVideoSurfaceFormat>
+#include <QVideoFrameFormat>
 
 #include <libuvc/libuvc.h>
 #include <unistd.h>
@@ -26,8 +26,8 @@ public:
     UvcAcquisition(QList<UsbId> ids);
     virtual ~UvcAcquisition();
 
-    Q_PROPERTY(const QVideoSurfaceFormat& videoFormat READ videoFormat WRITE setVideoFormat NOTIFY formatChanged)
-    const QVideoSurfaceFormat& videoFormat() const { return m_format; }
+    Q_PROPERTY(const QVideoFrameFormat& videoFormat READ videoFormat WRITE setVideoFormat NOTIFY formatChanged)
+    const QVideoFrameFormat& videoFormat() const { return m_format; }
 
     Q_PROPERTY(AbstractCCInterface* cci MEMBER m_cci NOTIFY cciChanged)
 
@@ -39,13 +39,13 @@ public:
 
 signals:
     void frameReady(const QVideoFrame &frame);
-    void formatChanged(const QVideoSurfaceFormat &format);
+    void formatChanged(const QVideoFrameFormat &format);
     void cciChanged(AbstractCCInterface *format);
     void dataFormatterChanged(AbstractCCInterface *format);
     void videoSizeChanged(const QSize &size);
 
 public slots:
-    void setVideoFormat(const QVideoSurfaceFormat &format);
+    void setVideoFormat(const QVideoFrameFormat &format);
 
     void pauseStream();
     void resumeStream();
@@ -55,8 +55,8 @@ protected:
     uvc_device_t *dev;
     uvc_device_handle_t *devh;
     uvc_stream_ctrl_t ctrl;
-    QVideoSurfaceFormat m_format;
-    QVideoSurfaceFormat m_uvc_format;
+    QVideoFrameFormat m_format;
+    uvc_frame_format m_uvcFrameFormat;
     AbstractCCInterface *m_cci;
     DataFormatter m_df;
 

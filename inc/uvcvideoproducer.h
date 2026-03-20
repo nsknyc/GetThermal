@@ -2,8 +2,7 @@
 #define UVCVIDEOPRODUCER_H
 
 #include <QObject>
-#include <QAbstractVideoSurface>
-#include <QVideoSurfaceFormat>
+#include <QVideoSink>
 #include "uvcacquisition.h"
 
 class UvcVideoProducer : public QObject
@@ -12,21 +11,21 @@ class UvcVideoProducer : public QObject
 public:
     explicit UvcVideoProducer(QObject *parent = 0);
 
-    Q_PROPERTY(QAbstractVideoSurface *videoSurface MEMBER m_surface WRITE setVideoSurface NOTIFY surfaceChanged)
-    void setVideoSurface(QAbstractVideoSurface *surface);
+    Q_PROPERTY(QVideoSink *videoSink MEMBER m_sink WRITE setVideoSink NOTIFY videoSinkChanged)
+    void setVideoSink(QVideoSink *sink);
 
     Q_PROPERTY(UvcAcquisition *uvc MEMBER m_uvc WRITE setUvc NOTIFY uvcChanged)
     void setUvc(UvcAcquisition *uvc);
 
 signals:
-    void surfaceChanged(QAbstractVideoSurface *surface);
+    void videoSinkChanged(QVideoSink *sink);
     void uvcChanged(UvcAcquisition *uvc);
 
 public slots:
     void onNewVideoContentReceived(const QVideoFrame &frame);
 
 private:
-    QAbstractVideoSurface *m_surface;
+    QVideoSink *m_sink;
     UvcAcquisition *m_uvc;
 };
 

@@ -147,15 +147,16 @@ bool LeptonVariation::getSupportsRuntimeAgcChange() const
     return !getPtFirmwareVersion().startsWith("v0");
 }
 
-const QVideoSurfaceFormat LeptonVariation::getDefaultFormat()
+const QVideoFrameFormat LeptonVariation::getDefaultFormat()
 {
     if (!getSupportsHwPseudoColor() || getSupportsRadiometry())
     {
-        return QVideoSurfaceFormat(m_sensorSize, QVideoFrame::Format_Y16);
+        return QVideoFrameFormat(m_sensorSize, QVideoFrameFormat::Format_Y16);
     }
     else
     {
-        return QVideoSurfaceFormat(m_sensorSize, QVideoFrame::Format_RGB24);
+        // No Format_RGB24 in Qt 6; use RGBX8888 as sentinel for "UVC RGB source"
+        return QVideoFrameFormat(m_sensorSize, QVideoFrameFormat::Format_RGBX8888);
     }
 }
 

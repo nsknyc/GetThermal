@@ -1,5 +1,5 @@
-import QtQuick 2.7
-import QtMultimedia 5.5
+import QtQuick
+import QtMultimedia
 import GetThermal 1.0
 
 ViewerForm {

@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.0
+import QtQuick
+import QtQuick.Controls
 import GetThermal 1.0
 
 Item {
@@ -65,7 +65,7 @@ Item {
 
     Connections {
         target: comboColorLutId
-        onCurrentIndexChanged: {
+        function onCurrentIndexChanged() {
             var currentItem = target.model.get(target.currentIndex);
             acq.cci.colorLutId = currentItem.data;
         }
@@ -73,7 +73,7 @@ Item {
 
     Connections {
         target: comboSwPcolorLut
-        onCurrentIndexChanged: {
+        function onCurrentIndexChanged() {
             var currentItem = target.model.get(target.currentIndex);
             acq.dataFormatter.pseudocolorPalette = currentItem.data;
         }
@@ -81,7 +81,7 @@ Item {
 
     Connections {
         target: buttonFfc
-        onClicked: {
+        function onClicked() {
             acq.cci.performFfc();
         }
     }

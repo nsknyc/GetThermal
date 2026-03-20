@@ -67,8 +67,8 @@ public:
     Q_PROPERTY(bool supportsRadiometry READ getSupportsRadiometry)
     bool getSupportsRadiometry();
 
-    Q_PROPERTY(const QVideoSurfaceFormat defaultFormat READ getDefaultFormat)
-    virtual const QVideoSurfaceFormat getDefaultFormat();
+    Q_PROPERTY(const QVideoFrameFormat defaultFormat READ getDefaultFormat)
+    virtual const QVideoFrameFormat getDefaultFormat();
 
 signals:
     void cameraInternalTempChanged(float temp);

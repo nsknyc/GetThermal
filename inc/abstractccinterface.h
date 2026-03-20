@@ -2,7 +2,7 @@
 #define ABSTRACTCCINTERFACE_H
 
 #include <QObject>
-#include <QVideoSurfaceFormat>
+#include <QVideoFrameFormat>
 
 class AbstractCCInterface : public QObject
 {
@@ -14,8 +14,8 @@ public:
 
     virtual const AbstractCCInterface &operator =(const AbstractCCInterface &format) = 0;
 
-    Q_PROPERTY(const QVideoSurfaceFormat defaultFormat READ getDefaultFormat)
-    virtual const QVideoSurfaceFormat getDefaultFormat() = 0;
+    Q_PROPERTY(const QVideoFrameFormat defaultFormat READ getDefaultFormat)
+    virtual const QVideoFrameFormat getDefaultFormat() = 0;
 
 public slots:
     virtual void performFfc() = 0;

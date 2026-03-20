@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.0
+import QtQuick
+import QtQuick.Controls
 import GetThermal 1.0
 
 Item {
@@ -30,9 +30,7 @@ Item {
         MouseArea {
             cursorShape: Qt.CrossCursor
             anchors.fill: parent
-            onClicked: {
-                moveUnscaledRoiTo(mouse.x, mouse.y)
-            }
+            onClicked: (mouse) => moveUnscaledRoiTo(mouse.x, mouse.y)
         }
 
         Rectangle {

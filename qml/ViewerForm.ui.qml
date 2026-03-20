@@ -1,7 +1,7 @@
-import QtQuick 2.7
-import QtQuick.Controls 2.0
-import QtQuick.Layouts 1.0
-import QtMultimedia 5.5
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtMultimedia
 import GetThermal 1.0
 import "qrc:/controls"
 import "qrc:/images"
@@ -22,6 +22,7 @@ Item {
     UvcVideoProducer {
         id: player
         uvc: acq
+        videoSink: videoOutput.videoSink
     }
 
     RowLayout {
@@ -47,7 +48,6 @@ Item {
                 id: videoOutput
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
-                source: player
                 VideoRoi {
                     id: radRoi
                     visible: acq.cci.supportsRadiometry

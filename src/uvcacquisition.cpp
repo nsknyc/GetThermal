@@ -1,5 +1,4 @@
 #include "uvcacquisition.h"
-#include "uvcbuffer.h"
 #include <QList>
 #include <libuvc/libuvc.h>
 
@@ -20,6 +19,7 @@ UvcAcquisition::UvcAcquisition(QObject *parent)
     , ctx(NULL)
     , dev(NULL)
     , devh(NULL)
+    , m_uvcFrameFormat(UVC_FRAME_FORMAT_UNKNOWN)
     , m_cci(NULL)
 {
     _ids.append({ PT1_VID, PT1_PID });
@@ -31,6 +31,7 @@ UvcAcquisition::UvcAcquisition(QList<UsbId> ids)
     : ctx(NULL)
     , dev(NULL)
     , devh(NULL)
+    , m_uvcFrameFormat(UVC_FRAME_FORMAT_UNKNOWN)
     , m_cci(NULL)
     , _ids(ids)
 {
@@ -140,33 +141,37 @@ void UvcAcquisition::init()
     }
 }
 
-void UvcAcquisition::setVideoFormat(const QVideoSurfaceFormat &format)
+void UvcAcquisition::setVideoFormat(const QVideoFrameFormat &format)
 {
     uvc_error_t res;
-    enum uvc_frame_format uvcFormat;
 
     uvc_stop_streaming(devh);
 
     switch(format.pixelFormat())
     {
-    case QVideoFrame::Format_YUV420P:
-        uvcFormat = UVC_FRAME_FORMAT_I420;
+    case QVideoFrameFormat::Format_YUV420P:
+        m_uvcFrameFormat = UVC_FRAME_FORMAT_I420;
+        m_format = QVideoFrameFormat(format.frameSize(), format.pixelFormat());
         break;
-    case QVideoFrame::Format_RGB24:
-        uvcFormat = UVC_FRAME_FORMAT_RGB;
+    case QVideoFrameFormat::Format_RGBX8888:
+        // Sentinel for UVC RGB24 source (no Format_RGB24 in Qt 6)
+        m_uvcFrameFormat = UVC_FRAME_FORMAT_RGB;
+        m_format = QVideoFrameFormat(format.frameSize(), QVideoFrameFormat::Format_BGRX8888);
         break;
-    case QVideoFrame::Format_Y16:
-        uvcFormat = UVC_FRAME_FORMAT_Y16;
+    case QVideoFrameFormat::Format_Y16:
+        m_uvcFrameFormat = UVC_FRAME_FORMAT_Y16;
+        m_format = QVideoFrameFormat(format.frameSize(), QVideoFrameFormat::Format_BGRX8888);
         break;
     default:
-        uvcFormat = UVC_FRAME_FORMAT_UNKNOWN;
+        m_uvcFrameFormat = UVC_FRAME_FORMAT_UNKNOWN;
+        m_format = QVideoFrameFormat(format.frameSize(), QVideoFrameFormat::Format_Invalid);
         break;
     }
 
     res = uvc_get_stream_ctrl_format_size(
                 devh, &ctrl, /* result stored in ctrl */
-                uvcFormat,
-                format.frameWidth(), format.frameHeight(), 0);
+                m_uvcFrameFormat,
+                format.frameSize().width(), format.frameSize().height(), 0);
 
     /* Print out the result */
     uvc_print_stream_ctrl(&ctrl, stderr);
@@ -174,27 +179,6 @@ void UvcAcquisition::setVideoFormat(const QVideoSurfaceFormat &format)
     if (res < 0) {
         uvc_perror(res, "get_mode"); /* device doesn't provide a matching stream */
         return;
-    }
-
-    m_uvc_format = format;
-
-    switch(format.pixelFormat())
-    {
-    case QVideoFrame::Format_YUV420P:
-        m_format = QVideoSurfaceFormat(format.frameSize(), format.pixelFormat());
-        break;
-    case QVideoFrame::Format_RGB24:
-        m_format = QVideoSurfaceFormat(format.frameSize(), QVideoFrame::Format_RGB32);
-        break;
-    case QVideoFrame::Format_Y16:
-        m_format = QVideoSurfaceFormat(format.frameSize(), QVideoFrame::Format_RGB32);
-        break;
-    case QVideoFrame::Format_YV12:
-        m_format = QVideoSurfaceFormat(format.frameSize(), format.pixelFormat());
-        break;
-    default:
-        m_format = QVideoSurfaceFormat(format.frameSize(), QVideoFrame::Format_Invalid);
-        break;
     }
 
     // Notify connections of format change
@@ -227,33 +211,28 @@ void UvcAcquisition::cb(uvc_frame_t *frame, void *ptr) {
     Q_ASSERT((int)frame->width == _this->m_format.frameWidth());
     Q_ASSERT((int)frame->height == _this->m_format.frameHeight());
 
-//    QImage image((uchar*)frame->data, frame->width, frame->height, QImage::Format_RGB888);
-//    QImage image("/Users/kurt/Desktop/uvc.png");
-//    QVideoFrame qframe(image.convertToFormat(QImage::Format_ARGB32));
-
-    // Need to reshape UVC input
-    if (_this->m_uvc_format.pixelFormat() != _this->m_format.pixelFormat())
+    // Need to reshape UVC input to display format
+    if (_this->m_uvcFrameFormat == UVC_FRAME_FORMAT_Y16 ||
+        _this->m_uvcFrameFormat == UVC_FRAME_FORMAT_RGB)
     {
-        // we don't have a reason to handle frame buffers other than RGBA for now
-        Q_ASSERT(_this->m_format.pixelFormat() == QVideoFrame::Format_RGB32);
+        // we don't have a reason to handle frame buffers other than BGRX8888 for now
+        Q_ASSERT(_this->m_format.pixelFormat() == QVideoFrameFormat::Format_BGRX8888);
 
-        QVideoFrame qframe(_this->m_format.frameWidth() * _this->m_format.frameHeight() * 4,
-                           _this->m_format.frameSize(),
-                           _this->m_format.frameWidth() * 4,
-                           _this->m_format.pixelFormat());
+        QVideoFrame qframe(QVideoFrameFormat(_this->m_format.frameSize(),
+                                             _this->m_format.pixelFormat()));
 
-        if (_this->m_uvc_format.pixelFormat() == QVideoFrame::Format_Y16)
+        if (_this->m_uvcFrameFormat == UVC_FRAME_FORMAT_Y16)
         {
             _this->m_df.AutoGain(frame);
             _this->m_df.Colorize(frame, qframe);
         }
-        else if (_this->m_uvc_format.pixelFormat() == QVideoFrame::Format_RGB24)
+        else if (_this->m_uvcFrameFormat == UVC_FRAME_FORMAT_RGB)
         {
-            qframe.map(QAbstractVideoBuffer::WriteOnly);
+            qframe.map(QVideoFrame::WriteOnly);
             for (int i = 0; i < qframe.height(); i++)
             {
                 uchar* rgb_line = &((uchar*)frame->data)[frame->step * i];
-                uchar* rgba_line = &qframe.bits()[qframe.bytesPerLine() * i];
+                uchar* rgba_line = &qframe.bits(0)[qframe.bytesPerLine(0) * i];
 
                 for (int j = 0; j < qframe.width(); j++)
                 {
@@ -269,9 +248,12 @@ void UvcAcquisition::cb(uvc_frame_t *frame, void *ptr) {
     }
     else
     {
-        UvcBuffer *buffer = new UvcBuffer();
-        buffer->setBackendBuffer((uchar*)frame->data, frame->width, frame->height, frame->step, frame->data_bytes);
-        QVideoFrame qframe(buffer, _this->m_format.frameSize(), _this->m_format.pixelFormat());
+        // Passthrough (e.g. YUV420P) — copy UVC buffer into Qt-managed frame
+        QVideoFrame qframe(QVideoFrameFormat(_this->m_format.frameSize(),
+                                             _this->m_format.pixelFormat()));
+        qframe.map(QVideoFrame::WriteOnly);
+        memcpy(qframe.bits(0), frame->data, frame->data_bytes);
+        qframe.unmap();
         _this->emitFrameReady(qframe);
     }
 }

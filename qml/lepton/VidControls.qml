@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.0
+import QtQuick
+import QtQuick.Controls
 import GetThermal 1.0
 
 Item {
@@ -151,7 +151,7 @@ Item {
 
     function delay(delayTime, cb) {
         function Timer() {
-            return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
+            return Qt.createQmlObject("import QtQuick; Timer {}", root);
         }
         var timer = new Timer();
         timer.interval = delayTime;
@@ -162,7 +162,7 @@ Item {
 
     Connections {
         target: buttonFfc
-        onClicked: {
+        function onClicked() {
             busyFfc.visible = true;
             acq.pauseStream();
             delay(150, function(){

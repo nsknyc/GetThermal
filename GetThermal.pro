@@ -4,8 +4,8 @@ exists($${OUT_PWD}/GetThermal.pro) {
 
 message(Qt version $$[QT_VERSION])
 
-!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 6) {
-    error("Unsupported Qt version, 5.7+ is required")
+!equals(QT_MAJOR_VERSION, 6) {
+    error("Qt 6 is required")
 }
 
 include(common.pri)
@@ -19,18 +19,17 @@ DebugBuild {
 QT += qml quick multimedia
 
 QT_CONFIG -= no-pkg-config
-CONFIG += c++11 \
+CONFIG += c++17 \
           link_pkgconfig
 
 MacBuild: {
-    PKG_CONFIG = /usr/local/bin/pkg-config
+    PKG_CONFIG = /opt/homebrew/bin/pkg-config
 }
 
 SOURCES += \
     src/main.cpp \
     src/uvcvideoproducer.cpp \
     src/uvcacquisition.cpp \
-    src/uvcbuffer.cpp \
     src/leptonvariation.cpp \
     src/abstractccinterface.cpp \
     lepton_sdk/Src/LEPTON_AGC.c \
@@ -61,7 +60,6 @@ QML_IMPORT_PATH =
 
 HEADERS += \
     inc/uvcvideoproducer.h \
-    inc/uvcbuffer.h \
     inc/uvcacquisition.h \
     inc/leptonvariation.h \
     inc/abstractccinterface.h \
@@ -99,7 +97,7 @@ DISTFILES += \
 
 PKGCONFIG += libusb-1.0
 
-QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.7
+QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.6
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libuvc/build/release/ -luvc
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libuvc/build/debug/ -luvc
@@ -117,7 +115,7 @@ MacBuild {
     QMAKE_INFO_PLIST    = Custom-Info.plist
     ICON                = $${BASEDIR}/icons/macos.icns
     OTHER_FILES        += Custom-Info.plist
-equals(QT_MAJOR_VERSION, 5) | greaterThan(QT_MINOR_VERSION, 5) {
+equals(QT_MAJOR_VERSION, 6) | greaterThan(QT_MINOR_VERSION, 6) {
     LIBS               += -framework ApplicationServices
 }
     # This is required to fixup homebrew libusb-1.0 installation
