@@ -24,6 +24,7 @@ CONFIG += c++17 \
 
 MacBuild: {
     PKG_CONFIG = /opt/homebrew/bin/pkg-config
+    QTPLUGIN += qdarwincamerapermission
 }
 
 SOURCES += \
@@ -41,17 +42,21 @@ SOURCES += \
     lepton_sdk/Src/crc16fast.c \
     src/dataformatter.cpp \
     src/rangeprovider.cpp \
-    src/bosonvariation.cpp \
-    boson_sdk/Client_API.c \
-    boson_sdk/Client_Dispatcher.c \
-    boson_sdk/Client_Packager.c \
-    boson_sdk/Example.c \
-    boson_sdk/Serializer_BuiltIn.c \
-    boson_sdk/Serializer_Struct.c \
-    boson_sdk/UART_Connector.c \
-    boson_sdk/flirChannels.c \
-    boson_sdk/flirCRC.c \
-    boson_sdk/libusb_binary_protocol.c
+    src/bosonvariation.cpp
+
+!MacBuild {
+    SOURCES += \
+        boson_sdk/Client_API.c \
+        boson_sdk/Client_Dispatcher.c \
+        boson_sdk/Client_Packager.c \
+        boson_sdk/Example.c \
+        boson_sdk/Serializer_BuiltIn.c \
+        boson_sdk/Serializer_Struct.c \
+        boson_sdk/UART_Connector.c \
+        boson_sdk/flirChannels.c \
+        boson_sdk/flirCRC.c \
+        boson_sdk/libusb_binary_protocol.c
+}
 
 RESOURCES += qml/qml.qrc
 
@@ -101,8 +106,7 @@ QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.6
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libuvc/build/release/ -luvc
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libuvc/build/debug/ -luvc
-else:macos: LIBS += -L$$PWD/libuvc/build/ -luvc
-else:unix: LIBS += -L$$PWD/libuvc/build/ -luvcstatic
+else:unix:!macx: LIBS += -L$$PWD/libuvc/build/ -luvcstatic
 
 INCLUDEPATH += $$PWD/lepton_sdk/Inc \
                $$PWD/libuvc/build/include \

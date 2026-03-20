@@ -11,7 +11,11 @@
 #include "LEPTON_SYS.h"
 #include "LEPTON_VID.h"
 
+#ifdef __macos__
+#include <libusb-1.0/libusb.h>
+#else
 #include <libuvc/libuvc.h>
+#endif
 
 #include "abstractccinterface.h"
 #include "leptonvariation_types.h"
@@ -37,9 +41,13 @@ class LeptonVariation : public AbstractCCInterface
 {
     Q_OBJECT
 public:
+#ifdef __macos__
+    LeptonVariation(libusb_device_handle *usbDevh);
+#else
     LeptonVariation(uvc_context_t *ctx,
                     uvc_device_t *dev,
                     uvc_device_handle_t *devh);
+#endif
 
     virtual ~LeptonVariation();
 
@@ -190,11 +198,16 @@ private:
         emit E(var);
     }
 
+#ifdef __macos__
+    libusb_device_handle *m_usbDevh;
+    QString m_serialString;
+#else
     uvc_context_t *ctx;
     uvc_device_t *dev;
     uvc_device_handle_t *devh;
-    LEP_CAMERA_PORT_DESC_T m_portDesc;
     uvc_device_descriptor_t *desc;
+#endif
+    LEP_CAMERA_PORT_DESC_T m_portDesc;
     QSize m_sensorSize;
     QMutex m_mutex;
     LEP_RAD_ROI_T m_spotmeterRoi;
@@ -205,7 +218,9 @@ private:
     LEP_OEM_SW_VERSION_T swVers;
     LEP_OEM_PART_NUMBER_T partNumber;
 
+#ifndef __macos__
     int leptonCommandIdToUnitId(LEP_COMMAND_ID commandID);
+#endif
 };
 
 Q_DECLARE_METATYPE(PCOLOR_LUT_E)

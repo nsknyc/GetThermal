@@ -1,9 +1,15 @@
 #include "uvcacquisition.h"
 #include <QList>
-#include <libuvc/libuvc.h>
+
+#ifdef __macos__
+#include <QPermissions>
+#include <QCoreApplication>
+#endif
 
 #include "leptonvariation.h"
+#ifndef __macos__
 #include "bosonvariation.h"
+#endif
 #include "dataformatter.h"
 
 //#define PLANAR_BUFFER 1
@@ -16,10 +22,18 @@
 
 UvcAcquisition::UvcAcquisition(QObject *parent)
     : QObject(parent)
+#ifdef __macos__
+    , m_camera(NULL)
+    , m_captureSession(NULL)
+    , m_captureSink(NULL)
+    , m_libusbCtx(NULL)
+    , m_libusbDevh(NULL)
+#else
     , ctx(NULL)
     , dev(NULL)
     , devh(NULL)
     , m_uvcFrameFormat(UVC_FRAME_FORMAT_UNKNOWN)
+#endif
     , m_cci(NULL)
 {
     _ids.append({ PT1_VID, PT1_PID });
@@ -28,10 +42,19 @@ UvcAcquisition::UvcAcquisition(QObject *parent)
 }
 
 UvcAcquisition::UvcAcquisition(QList<UsbId> ids)
-    : ctx(NULL)
+    : QObject()
+#ifdef __macos__
+    , m_camera(NULL)
+    , m_captureSession(NULL)
+    , m_captureSink(NULL)
+    , m_libusbCtx(NULL)
+    , m_libusbDevh(NULL)
+#else
+    , ctx(NULL)
     , dev(NULL)
     , devh(NULL)
     , m_uvcFrameFormat(UVC_FRAME_FORMAT_UNKNOWN)
+#endif
     , m_cci(NULL)
     , _ids(ids)
 {
@@ -45,6 +68,23 @@ UvcAcquisition::~UvcAcquisition()
         delete m_cci;
     }
 
+#ifdef __macos__
+    if (m_camera != NULL)
+    {
+        m_camera->stop();
+    }
+
+    if (m_libusbDevh != NULL)
+    {
+        libusb_release_interface(m_libusbDevh, 2);
+        libusb_close(m_libusbDevh);
+    }
+
+    if (m_libusbCtx != NULL)
+    {
+        libusb_exit(m_libusbCtx);
+    }
+#else
     if (devh != NULL)
     {
         uvc_stop_streaming(devh);
@@ -68,10 +108,119 @@ UvcAcquisition::~UvcAcquisition()
         uvc_exit(ctx);
         puts("UVC exited");
     }
+#endif
 }
 
 void UvcAcquisition::init()
 {
+#ifdef __macos__
+    int ret;
+
+    /* Initialize libusb and open vendor interface for Lepton SDK */
+    ret = libusb_init(&m_libusbCtx);
+    if (ret < 0) {
+        printf("libusb_init failed: %d\n", ret);
+        return;
+    }
+    puts("libusb initialized");
+
+    m_libusbDevh = libusb_open_device_with_vid_pid(m_libusbCtx, PT1_VID, PT1_PID);
+    if (m_libusbDevh == NULL) {
+        printf("PureThermal device not found\n");
+        return;
+    }
+    puts("PureThermal device opened");
+
+    ret = libusb_claim_interface(m_libusbDevh, 2);
+    if (ret < 0) {
+        printf("Failed to claim vendor interface: %d\n", ret);
+        libusb_close(m_libusbDevh);
+        m_libusbDevh = NULL;
+        return;
+    }
+    puts("Vendor interface claimed");
+
+    m_cci = new LeptonVariation(m_libusbDevh);
+
+    /* Find PureThermal camera in system camera list */
+    const QList<QCameraDevice> cameras = QMediaDevices::videoInputs();
+    QCameraDevice ptCamera;
+
+    for (const QCameraDevice &cam : cameras) {
+        if (cam.description().contains("PureThermal", Qt::CaseInsensitive) ||
+            cam.description().contains("GroupGets", Qt::CaseInsensitive) ||
+            cam.description().contains("0x1e4e", Qt::CaseInsensitive)) {
+            ptCamera = cam;
+            printf("Found camera: %s\n", qPrintable(cam.description()));
+            break;
+        }
+    }
+
+    if (ptCamera.isNull() && !cameras.isEmpty()) {
+        /* Fallback: list all cameras and use the first non-FaceTime one */
+        for (const QCameraDevice &cam : cameras) {
+            printf("Available camera: %s\n", qPrintable(cam.description()));
+            if (!cam.description().contains("FaceTime", Qt::CaseInsensitive)) {
+                ptCamera = cam;
+                break;
+            }
+        }
+    }
+
+    if (ptCamera.isNull()) {
+        printf("No suitable camera found\n");
+        /* Still allow the app to run for SDK control even without video */
+    }
+
+    if (!ptCamera.isNull()) {
+        if (m_cci != NULL)
+        {
+            setVideoFormat(m_cci->getDefaultFormat());
+        }
+
+        /* Request camera permission before creating camera objects */
+        QCameraDevice savedCamera = ptCamera;
+        QCameraPermission cameraPermission;
+
+        auto startCamera = [this, savedCamera]() {
+            m_camera = new QCamera(savedCamera, this);
+            m_captureSession = new QMediaCaptureSession(this);
+            m_captureSink = new QVideoSink(this);
+
+            m_captureSession->setCamera(m_camera);
+            m_captureSession->setVideoSink(m_captureSink);
+
+            connect(m_captureSink, &QVideoSink::videoFrameChanged,
+                    this, &UvcAcquisition::onCameraFrameReceived);
+
+            m_camera->start();
+            puts("Camera streaming started");
+        };
+
+        switch (qApp->checkPermission(cameraPermission)) {
+        case Qt::PermissionStatus::Granted:
+            startCamera();
+            break;
+        case Qt::PermissionStatus::Undetermined:
+            qApp->requestPermission(cameraPermission, this, [startCamera](const QPermission &permission) {
+                if (permission.status() == Qt::PermissionStatus::Granted) {
+                    startCamera();
+                } else {
+                    puts("Camera permission denied");
+                }
+            });
+            break;
+        default:
+            puts("Camera permission denied");
+            break;
+        }
+    }
+    else if (m_cci != NULL)
+    {
+        setVideoFormat(m_cci->getDefaultFormat());
+    }
+
+#else
     uvc_error_t res;
 
     /* Initialize a UVC service context. Libuvc will set up its own libusb
@@ -139,10 +288,18 @@ void UvcAcquisition::init()
     {
         setVideoFormat(m_cci->getDefaultFormat());
     }
+#endif
 }
 
 void UvcAcquisition::setVideoFormat(const QVideoFrameFormat &format)
 {
+#ifdef __macos__
+    /* On macOS, QCamera handles format negotiation. We just track the format
+     * for the UI (video size, format change signals). */
+    m_format = format;
+    emit formatChanged(m_format);
+    emit videoSizeChanged(m_format.frameSize());
+#else
     uvc_error_t res;
 
     uvc_stop_streaming(devh);
@@ -199,8 +356,19 @@ void UvcAcquisition::setVideoFormat(const QVideoFrameFormat &format)
     }
 
     puts("Streaming...");
+#endif
 }
 
+#ifdef __macos__
+void UvcAcquisition::onCameraFrameReceived(const QVideoFrame &frame)
+{
+    static int frameCount = 0;
+    if (frameCount++ % 100 == 0)
+        printf("Camera frame %d: %dx%d format=%d\n", frameCount,
+               frame.width(), frame.height(), (int)frame.pixelFormat());
+    emit frameReady(frame);
+}
+#else
 /* This callback function runs once per frame. Use it to perform any
  * quick processing you need, or have it put the frame into your application's
  * input queue. If this function takes too long, you'll start losing frames. */
@@ -257,6 +425,7 @@ void UvcAcquisition::cb(uvc_frame_t *frame, void *ptr) {
         _this->emitFrameReady(qframe);
     }
 }
+#endif
 
 void UvcAcquisition::emitFrameReady(const QVideoFrame &frame)
 {
@@ -264,10 +433,17 @@ void UvcAcquisition::emitFrameReady(const QVideoFrame &frame)
 }
 
 void UvcAcquisition::pauseStream() {
+#ifdef __macos__
+    if (m_camera) m_camera->stop();
+#else
     uvc_stop_streaming(devh);
+#endif
 }
 
 void UvcAcquisition::resumeStream() {
+#ifdef __macos__
+    if (m_camera) m_camera->start();
+#else
     uvc_error_t res = uvc_start_streaming(devh, &ctrl, UvcAcquisition::cb, this, 0);
 
     if (res < 0) {
@@ -277,4 +453,5 @@ void UvcAcquisition::resumeStream() {
 
         return;
     }
+#endif
 }

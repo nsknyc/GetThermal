@@ -8,6 +8,7 @@
 #include "LEPTON_SYS.h"
 #include "LEPTON_VID.h"
 
+#ifndef __macos__
 #define LEP_CID_AGC_MODULE (0x0100)
 #define LEP_CID_OEM_MODULE (0x0800)
 #define LEP_CID_RAD_MODULE (0x0E00)
@@ -21,6 +22,7 @@ typedef enum {
   VC_CONTROL_XU_LEP_SYS_ID,
   VC_CONTROL_XU_LEP_VID_ID,
 } VC_TERMINAL_ID;
+#endif
 
 #define QML_REGISTER_ENUM(name) \
     qmlRegisterUncreatableType<LEP::QE_##name>("GetThermal", 1,0, "LEP_" #name, "You can't create enumeration " #name); \
@@ -38,6 +40,61 @@ void registerLeptonVariationQmlTypes()
     QML_REGISTER_ENUM(SYS_GAIN_MODE_E)
 }
 
+#ifdef __macos__
+LeptonVariation::LeptonVariation(libusb_device_handle *usbDevh)
+    : m_usbDevh(usbDevh)
+    , m_mutex()
+{
+    printf("Initializing Lepton SDK with vendor USB backend...\n");
+
+    /* Read USB string descriptors */
+    libusb_device *dev = libusb_get_device(usbDevh);
+    struct libusb_device_descriptor devDesc;
+    libusb_get_device_descriptor(dev, &devDesc);
+
+    unsigned char buf[256];
+    if (devDesc.iSerialNumber &&
+        libusb_get_string_descriptor_ascii(usbDevh, devDesc.iSerialNumber, buf, sizeof(buf)) > 0) {
+        m_serialString = QString::fromLatin1((char*)buf);
+        printf("Serial: %s\n", buf);
+    }
+
+    if (devDesc.iProduct &&
+        libusb_get_string_descriptor_ascii(usbDevh, devDesc.iProduct, buf, sizeof(buf)) > 0) {
+        printf("Product: %s\n", buf);
+    }
+
+    m_portDesc.portID = 0;
+    m_portDesc.portType = LEP_CCI_UVC;
+    m_portDesc.userPtr = this;
+    LEP_OpenPort(m_portDesc.portID,
+                 m_portDesc.portType,
+                 0,
+                 &m_portDesc);
+    printf("Lepton SDK initialized OK\n");
+
+    LEP_GetOemSoftwareVersion(&m_portDesc, &swVers);
+    LEP_GetOemFlirPartNumber(&m_portDesc, &partNumber);
+    serialNumber = pget<uint64_t, uint64_t>(LEP_GetSysFlirSerialNumber);
+
+    /* Determine sensor size from part number */
+    QString pn = getOemFlirPartNumber();
+    if (pn.contains("500-0771") || pn.contains("500-0758") || pn.contains("500-0763")) {
+        m_sensorSize = QSize(160, 120); // Lepton 3.x
+    } else {
+        m_sensorSize = QSize(80, 60);   // Lepton 2.x
+    }
+    printf("Sensor size: %dx%d\n", m_sensorSize.width(), m_sensorSize.height());
+
+    LEP_GetRadSpotmeterRoi(&m_portDesc, &m_spotmeterRoi);
+
+    this->setObjectName("LeptonVariation");
+
+    m_periodicTimer = new QTimer(this);
+    connect(m_periodicTimer, SIGNAL(timeout()), this, SLOT(updateSpotmeter()));
+    m_periodicTimer->start(1000);
+}
+#else
 LeptonVariation::LeptonVariation(uvc_context_t *ctx,
                                  uvc_device_t *dev,
                                  uvc_device_handle_t *devh)
@@ -92,15 +149,22 @@ LeptonVariation::LeptonVariation(uvc_context_t *ctx,
     connect(m_periodicTimer, SIGNAL(timeout()), this, SLOT(updateSpotmeter()));
     m_periodicTimer->start(1000);
 }
+#endif
 
 LeptonVariation::~LeptonVariation()
 {
+#ifndef __macos__
     uvc_free_device_descriptor(desc);
+#endif
 }
 
 const AbstractCCInterface& LeptonVariation::operator =(const AbstractCCInterface&)
 {
+#ifdef __macos__
+    return LeptonVariation(m_usbDevh);
+#else
     return LeptonVariation(ctx, dev, devh);
+#endif
 }
 
 const QString LeptonVariation::getSysFlirSerialNumber()
@@ -125,7 +189,11 @@ const QString LeptonVariation::getOemDspSoftwareVersion()
 
 const QString LeptonVariation::getPtFirmwareVersion() const
 {
+#ifdef __macos__
+    return m_serialString;
+#else
     return QString::asprintf("%s", desc->serialNumber);
+#endif
 }
 
 bool LeptonVariation::getSupportsHwPseudoColor() const
@@ -199,6 +267,7 @@ void LeptonVariation::performFfc()
     LEP_RunSysFFCNormalization(&m_portDesc);
 }
 
+#ifndef __macos__
 int LeptonVariation::leptonCommandIdToUnitId(LEP_COMMAND_ID commandID)
 {
     int unit_id;
@@ -231,26 +300,38 @@ int LeptonVariation::leptonCommandIdToUnitId(LEP_COMMAND_ID commandID)
 
     return unit_id;
 }
+#endif
 
 LEP_RESULT LeptonVariation::UVC_GetAttribute(LEP_COMMAND_ID commandID,
                             LEP_ATTRIBUTE_T_PTR attributePtr,
                             LEP_UINT16 attributeWordLength)
 {
-    int unit_id;
-    int control_id;
-    int result;
-
-    unit_id = leptonCommandIdToUnitId(commandID);
-    if (unit_id < 0)
-        return (LEP_RESULT)unit_id;
-
-    control_id = ((commandID & 0x00ff) >> 2) + 1;
-
     // Size in 16-bit words needs to be in bytes
     attributeWordLength *= 2;
 
     QMutexLocker lock(&m_mutex);
-    result = uvc_get_ctrl(devh, unit_id, control_id, attributePtr, attributeWordLength, UVC_GET_CUR);
+
+#ifdef __macos__
+    int result = libusb_control_transfer(
+        m_usbDevh,
+        0xC1,               // vendor, device-to-host, interface recipient
+        0,                   // bRequest (unused by firmware)
+        commandID,           // wValue = Lepton command ID
+        2,                   // wIndex = vendor interface number
+        (unsigned char*)attributePtr,
+        attributeWordLength,
+        1000                 // timeout ms
+    );
+#else
+    int unit_id = leptonCommandIdToUnitId(commandID);
+    if (unit_id < 0)
+        return (LEP_RESULT)unit_id;
+
+    int control_id = ((commandID & 0x00ff) >> 2) + 1;
+
+    int result = uvc_get_ctrl(devh, unit_id, control_id, attributePtr, attributeWordLength, UVC_GET_CUR);
+#endif
+
     if (result != attributeWordLength)
     {
         printf("UVC_GetAttribute failed: %d", result);
@@ -264,21 +345,32 @@ LEP_RESULT LeptonVariation::UVC_SetAttribute(LEP_COMMAND_ID commandID,
                             LEP_ATTRIBUTE_T_PTR attributePtr,
                             LEP_UINT16 attributeWordLength)
 {
-    int unit_id;
-    int control_id;
-    int result;
-
-    unit_id = leptonCommandIdToUnitId(commandID);
-    if (unit_id < 0)
-        return (LEP_RESULT)unit_id;
-
-    control_id = ((commandID & 0x00ff) >> 2) + 1;
-
     // Size in 16-bit words needs to be in bytes
     attributeWordLength *= 2;
 
     QMutexLocker lock(&m_mutex);
-    result = uvc_set_ctrl(devh, unit_id, control_id, attributePtr, attributeWordLength);
+
+#ifdef __macos__
+    int result = libusb_control_transfer(
+        m_usbDevh,
+        0x41,               // vendor, host-to-device, interface recipient
+        0,                   // bRequest
+        commandID,           // wValue = Lepton command ID
+        2,                   // wIndex = vendor interface number
+        (unsigned char*)attributePtr,
+        attributeWordLength,
+        1000
+    );
+#else
+    int unit_id = leptonCommandIdToUnitId(commandID);
+    if (unit_id < 0)
+        return (LEP_RESULT)unit_id;
+
+    int control_id = ((commandID & 0x00ff) >> 2) + 1;
+
+    int result = uvc_set_ctrl(devh, unit_id, control_id, attributePtr, attributeWordLength);
+#endif
+
     if (result != attributeWordLength)
     {
         printf("UVC_SetAttribute failed: %d", result);
@@ -290,23 +382,38 @@ LEP_RESULT LeptonVariation::UVC_SetAttribute(LEP_COMMAND_ID commandID,
 
 LEP_RESULT LeptonVariation::UVC_RunCommand(LEP_COMMAND_ID commandID)
 {
-    int unit_id;
-    int control_id;
-    int result;
+    QMutexLocker lock(&m_mutex);
 
-    unit_id = leptonCommandIdToUnitId(commandID);
+#ifdef __macos__
+    int result = libusb_control_transfer(
+        m_usbDevh,
+        0x41,               // vendor, host-to-device, interface recipient
+        0,                   // bRequest
+        commandID,           // wValue = Lepton command ID
+        2,                   // wIndex = vendor interface number
+        NULL,                // no data
+        0,                   // wLength = 0 triggers RUN in firmware
+        1000
+    );
+    if (result != 0)
+    {
+        printf("UVC_RunCommand failed: %d", result);
+        return LEP_COMM_ERROR_READING_COMM;
+    }
+#else
+    int unit_id = leptonCommandIdToUnitId(commandID);
     if (unit_id < 0)
         return (LEP_RESULT)unit_id;
 
-    control_id = ((commandID & 0x00ff) >> 2) + 1;
+    int control_id = ((commandID & 0x00ff) >> 2) + 1;
 
-    QMutexLocker lock(&m_mutex);
-    result = uvc_set_ctrl(devh, unit_id, control_id, &control_id, 1);
+    int result = uvc_set_ctrl(devh, unit_id, control_id, &control_id, 1);
     if (result != 1)
     {
         printf("UVC_RunCommand failed: %d", result);
         return LEP_COMM_ERROR_READING_COMM;
     }
+#endif
 
     return LEP_OK;
 }

@@ -3,7 +3,11 @@
 
 #include <QObject>
 
+#ifdef __macos__
+#include <libusb-1.0/libusb.h>
+#else
 #include <libuvc/libuvc.h>
+#endif
 
 #include "abstractccinterface.h"
 #include "bosonvariation_types.h"
@@ -33,9 +37,11 @@ class BosonVariation : public AbstractCCInterface
 {
     Q_OBJECT
 public:
+#ifndef __macos__
     BosonVariation(uvc_context_t *ctx,
                    uvc_device_t *dev,
                    uvc_device_handle_t *devh);
+#endif
 
     virtual ~BosonVariation();
 
@@ -108,11 +114,13 @@ private:
         emit E(var);
     }
 
+#ifndef __macos__
     uvc_context_t *ctx;
     uvc_device_t *dev;
     uvc_device_handle_t *devh;
     libusb_device_handle *usb_devh;
     uvc_device_descriptor_t *desc;
+#endif
 };
 
 Q_DECLARE_METATYPE(COLORLUT_ID_E)

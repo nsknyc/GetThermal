@@ -2,9 +2,11 @@
 #define DATAFORMATTER_H
 
 #include <QObject>
-#include <libuvc/libuvc.h>
 #include <QVideoFrame>
 #include <QVideoFrameFormat>
+#ifndef __macos__
+#include <libuvc/libuvc.h>
+#endif
 
 typedef struct { const uint8_t colormap[256 * 3]; } colormap_t;
 
@@ -24,10 +26,12 @@ public:
     Q_ENUM(Palette)
     Q_PROPERTY(Palette pseudocolorPalette MEMBER m_pseudocolor_palette NOTIFY psuedocolorPaletteChanged)
 
+#ifndef __macos__
     void FindMinMax(const uvc_frame_t *input, QPoint &minPoint, uint16_t &minVal, QPoint &maxPoint, uint16_t &maxVal) const;
     void AutoGain(uvc_frame_t *input_output);
     void FixedGain(uvc_frame_t *input_output, QPoint minpoint, ushort minval, QPoint maxpoint, ushort maxval);
     void Colorize(const uvc_frame_t *input, QVideoFrame &output) const;
+#endif
 
     static const colormap_t* getPalette(Palette palette);
 

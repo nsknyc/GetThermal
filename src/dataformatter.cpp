@@ -25,6 +25,7 @@ const colormap_t* DataFormatter::getPalette(Palette palette)
     }
 }
 
+#ifndef __macos__
 void DataFormatter::FindMinMax(const uvc_frame_t *input, QPoint &minPoint, uint16_t &minVal, QPoint &maxPoint, uint16_t &maxVal) const
 {
     uint8_t bytes_per_pixel = 0;
@@ -197,3 +198,4 @@ void DataFormatter::Colorize(const uvc_frame_t *input, QVideoFrame &output) cons
     }
     output.unmap();
 }
+#endif /* !__macos__ */

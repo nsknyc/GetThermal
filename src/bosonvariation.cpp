@@ -1,12 +1,5 @@
 #include "bosonvariation.h"
 
-extern "C" {
-#include "boson_sdk/Client_API.h"
-#include "boson_sdk/EnumTypes.h"
-#include "boson_sdk/UART_Connector.h"
-int boson_example();
-}
-
 #define QML_REGISTER_ENUM(name) \
     qmlRegisterUncreatableType<FLR::QE_##name>("GetThermal", 1,0, "FLR_" #name, "You can't create enumeration " #name); \
     qRegisterMetaType<FLR::QE_##name::E>("FLR_" #name);
@@ -14,6 +7,34 @@ int boson_example();
 void registerBosonVariationQmlTypes()
 {
     QML_REGISTER_ENUM(COLORLUT_ID_E)
+}
+
+#ifdef __macos__
+/* Stubs for macOS — BosonVariation is never instantiated on macOS
+ * but Qt moc requires all Q_PROPERTY/virtual methods to exist */
+extern "C" {
+    FLR_RESULT colorLutGetId(FLR_COLORLUT_ID_E *) { return (FLR_RESULT)0; }
+    FLR_RESULT colorLutSetId(const FLR_COLORLUT_ID_E) { return (FLR_RESULT)0; }
+}
+const AbstractCCInterface& BosonVariation::operator =(const AbstractCCInterface&) { return *this; }
+const QString BosonVariation::getCameraPartNumber() { return QString(); }
+const QString BosonVariation::getCameraSerialNumber() { return QString(); }
+const QString BosonVariation::getSensorPartNumber() { return QString(); }
+const QString BosonVariation::getSensorSerialNumber() { return QString(); }
+const QString BosonVariation::getSoftwareRev() { return QString(); }
+bool BosonVariation::getSupportsHwPseudoColor() const { return false; }
+bool BosonVariation::getSupportsRadiometry() { return false; }
+const QVideoFrameFormat BosonVariation::getDefaultFormat() { return QVideoFrameFormat(); }
+float BosonVariation::getCameraInternalTempC() { return 0.0f; }
+BosonVariation::~BosonVariation() { }
+void BosonVariation::performFfc() { }
+#else
+
+extern "C" {
+#include "boson_sdk/Client_API.h"
+#include "boson_sdk/EnumTypes.h"
+#include "boson_sdk/UART_Connector.h"
+int boson_example();
 }
 
 BosonVariation::BosonVariation(uvc_context_t *ctx,
@@ -118,3 +139,4 @@ void BosonVariation::performFfc()
     FLR_RESULT result = bosonRunFFC();
     printf("RunFFC:  0x%08X \n", result);
 }
+#endif /* !__macos__ */

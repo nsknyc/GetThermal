@@ -6,8 +6,16 @@
 #include <QVideoFrame>
 #include <QVideoFrameFormat>
 
+#ifdef __macos__
+#include <QCamera>
+#include <QMediaCaptureSession>
+#include <QMediaDevices>
+#include <QVideoSink>
+#include <libusb-1.0/libusb.h>
+#else
 #include <libuvc/libuvc.h>
 #include <unistd.h>
+#endif
 
 #include "abstractccinterface.h"
 #include "dataformatter.h"
@@ -51,17 +59,30 @@ public slots:
     void resumeStream();
 
 protected:
+    QVideoFrameFormat m_format;
+    AbstractCCInterface *m_cci;
+    DataFormatter m_df;
+
+#ifdef __macos__
+    QCamera *m_camera;
+    QMediaCaptureSession *m_captureSession;
+    QVideoSink *m_captureSink;
+    libusb_context *m_libusbCtx;
+    libusb_device_handle *m_libusbDevh;
+#else
     uvc_context_t *ctx;
     uvc_device_t *dev;
     uvc_device_handle_t *devh;
     uvc_stream_ctrl_t ctrl;
-    QVideoFrameFormat m_format;
     uvc_frame_format m_uvcFrameFormat;
-    AbstractCCInterface *m_cci;
-    DataFormatter m_df;
+#endif
 
 private:
+#ifndef __macos__
     static void cb(uvc_frame_t *frame, void *ptr);
+#else
+    void onCameraFrameReceived(const QVideoFrame &frame);
+#endif
     void emitFrameReady(const QVideoFrame &frame);
     void init();
     QList<UsbId> _ids;

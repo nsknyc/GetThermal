@@ -18,6 +18,8 @@
 	<string>@EXECUTABLE@</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.groupgets.getthermal</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GetThermal needs camera access to display thermal video from FLIR Lepton cameras.</string>
 	<key>NOTE</key>
 	<string>Open source GetThermal app provided by GroupGets and GetLab</string>
 </dict>

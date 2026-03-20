@@ -2,7 +2,9 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QDebug>
+#ifndef __macos__
 #include <libuvc/libuvc.h>
+#endif
 #include "uvcvideoproducer.h"
 #include "uvcacquisition.h"
 #include "bosonvariation.h"
