@@ -8,7 +8,7 @@ Item {
     width: 200
     property UvcAcquisition acq: null
     anchors.margins: 5
-    enabled: !acq.cci.supportsRadiometry
+    enabled: !acq.cci.supportsRadiometry || acq.nativeCamera
 
     Flow {
         id: flow1

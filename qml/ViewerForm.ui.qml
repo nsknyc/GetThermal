@@ -95,6 +95,7 @@ Item {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 acq: acq
+                visible: !acq.nativeCamera
             }
         }
 

@@ -23,7 +23,7 @@ Item {
         ComboBox {
             id: comboVidPcolorLut
             width: parent.width
-            visible: acq.cci.supportsHwPseudoColor && !acq.cci.supportsRadiometry
+            visible: acq.cci.supportsHwPseudoColor && (!acq.cci.supportsRadiometry || acq.nativeCamera)
 
             model: ListModel {
                 ListElement { text: "Wheel"; data: LEP_PCOLOR_LUT_E.LEP_VID_WHEEL6_LUT }
@@ -39,12 +39,15 @@ Item {
             textRole: qsTr("text")
 
             currentIndex: acq.cci.vidPcolorLut
+            onActivated: (index) => {
+                acq.cci.vidPcolorLut = model.get(index).data;
+            }
         }
 
         ComboBox {
             id: comboSwPcolorLut
             width: parent.width
-            visible: !acq.cci.supportsHwPseudoColor || acq.cci.supportsRadiometry
+            visible: (!acq.cci.supportsHwPseudoColor || acq.cci.supportsRadiometry) && !acq.nativeCamera
 
             model: ListModel {
                 ListElement { text: "Iron Black"; data: DataFormatter.IronBlack }
@@ -54,6 +57,9 @@ Item {
             textRole: qsTr("text")
 
             currentIndex: acq.dataFormatter.pseudocolorPalette
+            onActivated: (index) => {
+                acq.dataFormatter.pseudocolorPalette = model.get(index).data;
+            }
         }
 
         Label {
@@ -75,6 +81,9 @@ Item {
             textRole: qsTr("text")
 
             currentIndex: acq.cci.radTLinearResolution
+            onActivated: {
+                acq.cci.radTLinearResolution = model.get(currentIndex).data;
+            }
         }
 
         Label {
@@ -95,6 +104,9 @@ Item {
             textRole: qsTr("text")
 
             currentIndex: acq.cci.sysGainMode
+            onActivated: {
+                acq.cci.sysGainMode = model.get(currentIndex).data;
+            }
         }
 
         Switch {
@@ -119,34 +131,11 @@ Item {
         }
     }
 
-    Binding {
-        target: acq.cci
-        property: "vidPcolorLut"
-        value: comboVidPcolorLut.model.get(comboVidPcolorLut.currentIndex).data
-    }
-
-    Binding {
-        target: acq.dataFormatter
-        property: "pseudocolorPalette"
-        value: comboSwPcolorLut.model.get(comboSwPcolorLut.currentIndex).data
-    }
-
-    Binding {
-        target: acq.cci
-        property: "vidSbNucEnableState"
-        value: switchSbNuc.checked ? LEP_VID_SBNUC_ENABLE_E.LEP_VID_SBNUC_ENABLE : LEP_VID_SBNUC_ENABLE_E.LEP_VID_SBNUC_DISABLE
-    }
-
-    Binding {
-        target: acq.cci
-        property: "radTLinearResolution"
-        value: comboRadTLinearResolution.model.get(comboRadTLinearResolution.currentIndex).data
-    }
-
-    Binding {
-        target: acq.cci
-        property: "sysGainMode"
-        value: comboSysGainMode.model.get(comboSysGainMode.currentIndex).data
+    Connections {
+        target: switchSbNuc
+        function onCheckedChanged() {
+            acq.cci.vidSbNucEnableState = switchSbNuc.checked ? LEP_VID_SBNUC_ENABLE_E.LEP_VID_SBNUC_ENABLE : LEP_VID_SBNUC_ENABLE_E.LEP_VID_SBNUC_DISABLE;
+        }
     }
 
     function delay(delayTime, cb) {

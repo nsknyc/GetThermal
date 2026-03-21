@@ -45,6 +45,13 @@ public:
     Q_PROPERTY(const QSize& videoSize READ getVideoSize NOTIFY videoSizeChanged)
     const QSize getVideoSize() { return m_format.frameSize(); }
 
+    Q_PROPERTY(bool nativeCamera READ getNativeCamera CONSTANT)
+#ifdef __macos__
+    bool getNativeCamera() { return true; }
+#else
+    bool getNativeCamera() { return false; }
+#endif
+
 signals:
     void frameReady(const QVideoFrame &frame);
     void formatChanged(const QVideoFrameFormat &format);

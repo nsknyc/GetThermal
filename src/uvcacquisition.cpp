@@ -362,10 +362,6 @@ void UvcAcquisition::setVideoFormat(const QVideoFrameFormat &format)
 #ifdef __macos__
 void UvcAcquisition::onCameraFrameReceived(const QVideoFrame &frame)
 {
-    static int frameCount = 0;
-    if (frameCount++ % 100 == 0)
-        printf("Camera frame %d: %dx%d format=%d\n", frameCount,
-               frame.width(), frame.height(), (int)frame.pixelFormat());
     emit frameReady(frame);
 }
 #else
